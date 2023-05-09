@@ -34,8 +34,7 @@ STAR=[[0,101.287156,-16.716114,'天狼星','大犬座','43'],[1,95.987959,-52.69
 [90,124.631459,-76.919721,'小斗增一','蝘蜓座','79'],[91,287.368091,-37.904473,'鳖六','南冕座','80'],[92,156.787922,-31.067777,'近天记增二','唧筒座','62'],[93,197.968307,27.878184,'周鼎一','后发座','42'],[94,14.651503,-29.357447,'近土司空南','玉夫座','36'],
 [95,292.176372,24.664907,'齐增五','狐狸座','55'],[96,70.140471,-41.86375,'近天园增六','雕具座','81'],[97,151.984502,-0.371635,'天相二','六分仪座','47'],[98,315.322752,-32.257766,'璃瑜增一','显微镜座','66'],[99,82.970621,-76.340973,'山案座','山案座','75']]
 
-def Cacalt_az(ra,dec):#输入赤经ra、赤纬dec，输出方位角AZ、俯仰角ALT
-    global UT,d,LST
+def Cacalt_az(ra,dec,LST):#输入赤经ra、赤纬dec、恒星时，输出方位角AZ、俯仰角ALT
     HA=LST-ra
     
     sinDEC, cosDEC = math.sin(dec*math.pi/180), math.cos(dec*math.pi/180)
@@ -55,9 +54,7 @@ def Cacalt_az(ra,dec):#输入赤经ra、赤纬dec，输出方位角AZ、俯仰�
         AZ=360-A
     return AZ,ALT
     
-def Cacra_dec(head,pitch):#输入方位角AZ、俯仰角ALT,输出赤经ra、赤纬dec
-    global UT,d,LST
-    
+def Cacra_dec(head,pitch,LST):#输入方位角AZ、俯仰角ALT、恒星时LST，输出赤经ra、赤纬dec
     sinlat, coslat = math.sin(LAT*math.pi/180), math.cos(LAT*math.pi/180)
     sina,   cosa   = math.sin(head*math.pi/180), math.cos(head*math.pi/180)
     sinalt, cosalt, tanalt = math.sin(pitch*math.pi/180), math.cos(pitch*math.pi/180),math.tan(pitch*math.pi/180)
@@ -141,16 +138,13 @@ def head_tilt():                    #倾斜补偿
     
     xh = MX*cosPitch + MY*sinRoll*sinPitch + MZ*cosRoll*sinPitch
     yh = -MZ*sinRoll + MY*cosRoll      
-    bearing = (math.atan2(xh,yh)*180/math.pi-90-3.3)%360    #深圳，磁偏角-318′
-
+    bearing = (math.atan2(xh,yh)*180/math.pi-90-3.3)%360    #深圳，磁偏角-3.3
     return bearing
 
 while True:
     if init==0:
-        image_picture = Image()
-    
+        image_picture = Image() 
         calibrate_start=False #是否进行校准
-        laser_on=False
         uart1 = UART(1, baudrate=9600, tx=Pin.P16, rx=Pin.P15)      #北斗接口
         tim1.init(period=1000, mode=Timer.PERIODIC,callback=test)   #每1秒测试1次
         button_a.event_pressed = on_button_a_pressed
@@ -165,10 +159,9 @@ while True:
     LST=(100.46 + 0.985647 *d + LON + 15*UT)%360
     
     A = head_tilt()                         #有倾斜补偿的真方位角
-    H = accelerometer.roll_pitch_angle()[1] #俯仰角（高度角）
-    
-    ra,dec = Cacra_dec(A,H)                 #计算赤经赤纬
-    #a,h=Cacalt_az(ra,dec)
+    H = accelerometer.roll_pitch_angle()[1] #俯仰角（高度角）    
+    ra,dec = Cacra_dec(A,H,LST)             #计算赤经赤纬
+    #a,h = Cacalt_az(ra,dec,LST)
     
     oled.fill(0)
     starscan_show(ra,dec)               #遍历星表,显示星星和星座
