@@ -1,4 +1,3 @@
-#mPythonType:0
 from machine import UART,Timer,RTC
 from mpython import *
 import math
@@ -34,8 +33,8 @@ STAR=[[0,101.287156,-16.716114,'天狼星','大犬座','43'],[1,95.987959,-52.69
 [90,124.631459,-76.919721,'小斗增一','蝘蜓座','79'],[91,287.368091,-37.904473,'鳖六','南冕座','80'],[92,156.787922,-31.067777,'近天记增二','唧筒座','62'],[93,197.968307,27.878184,'周鼎一','后发座','42'],[94,14.651503,-29.357447,'近土司空南','玉夫座','36'],
 [95,292.176372,24.664907,'齐增五','狐狸座','55'],[96,70.140471,-41.86375,'近天园增六','雕具座','81'],[97,151.984502,-0.371635,'天相二','六分仪座','47'],[98,315.322752,-32.257766,'璃瑜增一','显微镜座','66'],[99,82.970621,-76.340973,'山案座','山案座','75']]
 
-def Cacalt_az(ra,dec,LST):#输入赤经ra、赤纬dec、恒星时，输出方位角AZ、俯仰角ALT
-    HA=LST-ra
+def Cacalt_az(ra,dec,lst):#输入赤经ra、赤纬dec、恒星时lst，输出方位角AZ、俯仰角ALT
+    HA=lst-ra
     
     sinDEC, cosDEC = math.sin(dec*math.pi/180), math.cos(dec*math.pi/180)
     sinLAT, cosLAT = math.sin(LAT*math.pi/180), math.cos(LAT*math.pi/180)
@@ -54,7 +53,7 @@ def Cacalt_az(ra,dec,LST):#输入赤经ra、赤纬dec、恒星时，输出方位
         AZ=360-A
     return AZ,ALT
     
-def Cacra_dec(head,pitch,LST):#输入方位角AZ、俯仰角ALT、恒星时LST，输出赤经ra、赤纬dec
+def Cacra_dec(head,pitch,lst):#输入方位角AZ、俯仰角ALT、恒星时LST，输出赤经ra、赤纬dec
     sinlat, coslat = math.sin(LAT*math.pi/180), math.cos(LAT*math.pi/180)
     sina,   cosa   = math.sin(head*math.pi/180), math.cos(head*math.pi/180)
     sinalt, cosalt, tanalt = math.sin(pitch*math.pi/180), math.cos(pitch*math.pi/180),math.tan(pitch*math.pi/180)
@@ -62,7 +61,7 @@ def Cacra_dec(head,pitch,LST):#输入方位角AZ、俯仰角ALT、恒星时LST�
     sindec = cosa*cosalt*coslat + sinalt*sinlat
     dec = math.asin(sindec)*180/math.pi
     t = math.atan2(-sina*cosalt,sinalt*coslat-cosalt*sinlat*cosa)*180/math.pi
-    ra = (LST-t)%360
+    ra = (lst-t)%360
     return ra,dec
 
 def bds_work():     #北斗解析
