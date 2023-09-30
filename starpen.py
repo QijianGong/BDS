@@ -1,17 +1,16 @@
-from machine import UART,Timer,RTC
+from machine import UART
 from mpython import *
 import math
 
 LON = 113.99194 #观测者经度
 LAT = 22.58750  #观测者纬度
 d   = 8034.5    #距离J2000的天数
-UT  = 0
-UTC = "2000/01/01 00:00"
+UT  = 0         #世界时（小时）
+UTC = "2000/01/01 00:00"     #世界时间
 days = [0,31,59,90,120,151,181,212,243,273,304,334]
-init = 0
-tim1 = Timer(1) #测试间隔
+init = 0        #初始化标记
 Xmax,Xmin,Ymax,Ymin,Zmax,Zmin = 1,-1,1,-1,1,-1 #磁力校准数据
-
+#编号、赤经、赤纬、星星名、星座名、星座编号
 STAR=[[0,101.287156,-16.716114,'天狼星','大犬座','43'],[1,95.987959,-52.695659,'老人','船底座','34'],[2,219.902063,-60.833973,'南门二','半人马座','09'],[3,279.234736,38.783693,'织女星','天琴座','52'],[4,213.915302,19.182414,'大角','牧夫座','13'],
 [5,79.17233,45.997992,'五车二','御夫座','21'],[6,78.634583,-8.201667,'参宿七','猎户座','26'],[7,114.825493,5.224994,'南河三','小犬座','71'],[8,24.428749,-57.236668,'水委一','波江座','06'],[9,88.792939,7.407063,'参宿四','猎户座','26'],
 [10,210.955853,-60.373038,'马腹一','半人马座','09'],[11,297.69583,8.868323,'牛郎星','天鹰座','22'],[12,68.980162,16.509302,'毕宿五','金牛座','17'],[13,247.351921,-26.432001,'心宿二','天蝎座','33'],[14,201.298248,-11.16132,'角宿一','室女座','02'],
@@ -33,35 +32,21 @@ STAR=[[0,101.287156,-16.716114,'天狼星','大犬座','43'],[1,95.987959,-52.69
 [90,124.631459,-76.919721,'小斗增一','蝘蜓座','79'],[91,287.368091,-37.904473,'鳖六','南冕座','80'],[92,156.787922,-31.067777,'近天记增二','唧筒座','62'],[93,197.968307,27.878184,'周鼎一','后发座','42'],[94,14.651503,-29.357447,'近土司空南','玉夫座','36'],
 [95,292.176372,24.664907,'齐增五','狐狸座','55'],[96,70.140471,-41.86375,'近天园增六','雕具座','81'],[97,151.984502,-0.371635,'天相二','六分仪座','47'],[98,315.322752,-32.257766,'璃瑜增一','显微镜座','66'],[99,82.970621,-76.340973,'山案座','山案座','75']]
 
-def Cacalt_az(ra,dec,lst):#输入赤经ra、赤纬dec、恒星时lst，输出方位角AZ、俯仰角ALT
-    HA=lst-ra
+def Cacra_dec(head,pitch):#输入方位角a、俯仰角（高度角）alt,输出赤经ra、赤纬dec
+    global LST
+    #世界时和地理经度计算本地恒星时
+    LST=(100.46 + 0.985647 *d + LON + 15*UT)%360 
     
-    sinDEC, cosDEC = math.sin(dec*math.pi/180), math.cos(dec*math.pi/180)
-    sinLAT, cosLAT = math.sin(LAT*math.pi/180), math.cos(LAT*math.pi/180)
-    sinHA,  cosHA  = math.sin(HA*math.pi/180),  math.cos(HA*math.pi/180) 
-    
-    sinALT = sinDEC*sinLAT + cosDEC*cosLAT*cosHA
-    ALT = math.asin(sinALT)
-    cosALT = math.cos(ALT)
-    cosA   = (sinDEC-sinALT*sinLAT)/(cosALT*cosLAT)
-    A = math.acos(cosA)*180/math.pi
-    ALT=180*ALT/math.pi
-    
-    if sinHA<0:
-        AZ=A
-    else:
-        AZ=360-A
-    return AZ,ALT
-    
-def Cacra_dec(head,pitch,lst):#输入方位角AZ、俯仰角ALT、恒星时LST，输出赤经ra、赤纬dec
+    #地理纬度、方位角、高度角
     sinlat, coslat = math.sin(LAT*math.pi/180), math.cos(LAT*math.pi/180)
     sina,   cosa   = math.sin(head*math.pi/180), math.cos(head*math.pi/180)
     sinalt, cosalt, tanalt = math.sin(pitch*math.pi/180), math.cos(pitch*math.pi/180),math.tan(pitch*math.pi/180)
-
+    
+    #先计算赤纬和时角t，再利用本地恒星时计算赤经ra
     sindec = cosa*cosalt*coslat + sinalt*sinlat
     dec = math.asin(sindec)*180/math.pi
     t = math.atan2(-sina*cosalt,sinalt*coslat-cosalt*sinlat*cosa)*180/math.pi
-    ra = (lst-t)%360
+    ra = (LST-t)%360
     return ra,dec
 
 def bds_work():     #北斗解析
@@ -101,7 +86,7 @@ def bds_location(n,e):              #经纬度解析
     de=float(dd_e)+float(mm_e)/60   #经度：ddmm.mmmm转为度
     return dn,de
     
-def starscan_show(ra,dec):               #遍历星表，星星匹配附近正负5
+def starscan_show(ra,dec):          #遍历星表，星星匹配附近正负5
     for i in range(len(STAR)):
         if (abs(STAR[i][1]-ra)<5 or abs(STAR[i][1]-ra) >355) and abs(STAR[i][2]-dec)<5:
             oled.DispChar(str(STAR[i][3]), 104-6*len(STAR[i][3]), 50,1)
@@ -114,7 +99,7 @@ def on_button_a_pressed(_):         #A键判断是否进行磁力校准
     global calibrate_start
     calibrate_start= not calibrate_start
         
-def test(_):                        #每1秒测试1次
+def bds_test():                     #北斗测量
     for i in range(10):             
         if bds_work() == 1: break
         
@@ -123,29 +108,30 @@ def magnetic_calibrate():           #磁力校准
     mx,my,mz = magnetic.get_x(),magnetic.get_y(),magnetic.get_z()
     Xmax,Xmin,Ymax,Ymin,Zmax,Zmin = max(Xmax,mx),min(Xmin,mx),max(Ymax,my),min(Ymin,my),max(Zmax,mz),min(Zmin,mz)
 
-def head_tilt():                    #倾斜补偿
+def head_tilt():                    #获取倾斜补偿后的真方位角
     global Xmax,Xmin,Ymax,Ymin,Zmax,Zmin
    
-    roll,pitch = accelerometer.roll_pitch_angle()
+    roll,pitch = accelerometer.roll_pitch_angle()  #横滚角和俯仰角
     sinRoll,cosRoll = math.sin(roll/180*math.pi),math.cos(roll/180*math.pi)
     sinPitch,cosPitch = math.sin(pitch/180*math.pi),math.cos(pitch/180*math.pi)
     
-    mx,my,mz = magnetic.get_x(),magnetic.get_y(),magnetic.get_z()
+    mx,my,mz = magnetic.get_x(),magnetic.get_y(),magnetic.get_z() #3个方向的磁场强度
+    #零点漂移校准，获取校准后的磁场强度
     MX=mx-(Xmax + Xmin)/2
     MY=(my-(Ymax + Ymin)/2)*(Xmax-Xmin)/(Ymax-Ymin)
     MZ=(mz-(Zmax + Zmin)/2)*(Xmax-Xmin)/(Zmax-Zmin) 
-    
+    #倾斜补偿公式算磁方位角、再利用磁偏角算真方位角
     xh = MX*cosPitch + MY*sinRoll*sinPitch + MZ*cosRoll*sinPitch
     yh = -MZ*sinRoll + MY*cosRoll      
-    bearing = (math.atan2(xh,yh)*180/math.pi-90-3.3)%360    #深圳，磁偏角-3.3
+    bearing = (math.atan2(xh,yh)*180/math.pi-90-3.3)%360    #深圳，磁偏角-3.3°
+
     return bearing
 
 while True:
     if init==0:
-        image_picture = Image() 
-        calibrate_start=False #是否进行校准
+        image_picture = Image()
+        calibrate_start=False               #是否进行校准
         uart1 = UART(1, baudrate=9600, tx=Pin.P16, rx=Pin.P15)      #北斗接口
-        tim1.init(period=1000, mode=Timer.PERIODIC,callback=test)   #每1秒测试1次
         button_a.event_pressed = on_button_a_pressed
         init=1
 
@@ -154,20 +140,18 @@ while True:
         oled.blit(image_picture.load('calibrate.pbm', 0), 0, 0)
         oled.show()
         continue 
-    
-    LST=(100.46 + 0.985647 *d + LON + 15*UT)%360
-    
+
     A = head_tilt()                         #有倾斜补偿的真方位角
-    H = accelerometer.roll_pitch_angle()[1] #俯仰角（高度角）    
-    ra,dec = Cacra_dec(A,H,LST)             #计算赤经赤纬
-    #a,h = Cacalt_az(ra,dec,LST)
-    
+    H = accelerometer.roll_pitch_angle()[1] #俯仰角（高度角）
+    bds_test()                              #北斗测量经纬度和世界时间
+    ra,dec = Cacra_dec(A,H)                 #计算赤经赤纬
+
     oled.fill(0)
-    starscan_show(ra,dec)               #遍历星表,显示星星和星座
+    starscan_show(ra,dec)                   #遍历星表,显示星星和星座
     oled.DispChar(UTC[5:], 0, 0, 1)
     oled.DispChar("N:{:.5f} ".format(LAT), 0, 16, 1)
     oled.DispChar("E:{:.5f} ".format(LON), 0, 32, 1) 
     oled.DispChar('A:'+str(int(A))+' H:'+str(int(H)), 0, 48,1)
     #oled.DispChar('RA:'+str(int(ra))+' DEC:'+str(int(dec)),0,32,1)
     oled.show()
-    sleep_ms(1000) 
+    sleep_ms(1500) 
