@@ -1657,8 +1657,7 @@ class AstronomyCalculator:
         dec_deg = dec_rad * self.RAD_TO_DEG
         
         print(f"赤经：{ra_deg}\n赤纬：{dec_deg}")
-        return CelestialCoordinates(ra= 101.2875, dec=-16.7161)
-        #return CelestialCoordinates(ra=ra_deg, dec=dec_deg)
+        return CelestialCoordinates(ra=ra_deg, dec=dec_deg)
 
     def solve_kepler(self, M: float, e: float, epsilon: float = 1e-8) -> float:
         """解开普勒方程 E - e*sin(E) = M (弧度)"""
